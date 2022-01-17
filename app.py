@@ -4,6 +4,8 @@ import dash_html_components as html
 import pandas as pd
 import numpy as np
 from dash.dependencies import Output, Input
+from flask import Flask
+
 
 data = pd.read_csv("data/avocado.csv")
 data["Date"] = pd.to_datetime(data["Date"], format="%Y-%m-%d")
@@ -16,7 +18,9 @@ external_stylesheets = [
         "rel": "stylesheet",
     },
 ]
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+flask_server = Flask(__name__)
+app = dash.Dash(
+    __name__, external_stylesheets=external_stylesheets, server=flask_server)
 app.title = "Avocado Analytics: Understand Your Avocados!"
 
 app.layout = html.Div(
@@ -48,6 +52,21 @@ app.layout = html.Div(
                                 for region in np.sort(data.region.unique())
                             ],
                             value="Albany",
+                            clearable=False,
+                            className="dropdown",
+                        ),
+                    ]
+                ),
+                html.Div(
+                    children=[
+                        html.Div(children="Year", className="menu-title"),
+                        dcc.Dropdown(
+                            id="year-filter",
+                            options=[
+                                {"label": year, "value": year}
+                                for year in np.sort(data.year.unique())
+                            ],
+                            value=2015,
                             clearable=False,
                             className="dropdown",
                         ),
@@ -112,17 +131,19 @@ app.layout = html.Div(
     [Output("price-chart", "figure"), Output("volume-chart", "figure")],
     [
         Input("region-filter", "value"),
+        Input("year-filter", "value"),
         Input("type-filter", "value"),
         Input("date-range", "start_date"),
         Input("date-range", "end_date"),
     ],
 )
-def update_charts(region, avocado_type, start_date, end_date):
+def update_charts(region, year, avocado_type, start_date, end_date):
     mask = (
         (data.region == region)
         & (data.type == avocado_type)
         & (data.Date >= start_date)
         & (data.Date <= end_date)
+        & (data.year == year)
     )
     filtered_data = data.loc[mask, :]
     price_chart_figure = {
@@ -161,6 +182,8 @@ def update_charts(region, avocado_type, start_date, end_date):
             "colorway": ["#E12D39"],
         },
     }
+
+    print(price_chart_figure)
     return price_chart_figure, volume_chart_figure
 
 
